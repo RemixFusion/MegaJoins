@@ -18,7 +18,9 @@ public final class MegaJoins extends Plugin implements Listener {
     private final Map<UUID, String> playerHost = new ConcurrentHashMap<>();
     private SQLite db;
 
+    // Async executors
     private ExecutorService dbExec;
+    private ExecutorService lookupExec;
 
     @Override
     public void onEnable() {
@@ -31,6 +33,11 @@ public final class MegaJoins extends Plugin implements Listener {
         }
         dbExec = Executors.newSingleThreadExecutor(r -> {
             Thread t = new Thread(r, "MegaJoins-DB");
+            t.setDaemon(true);
+            return t;
+        });
+        lookupExec = Executors.newFixedThreadPool(2, r -> {
+            Thread t = new Thread(r, "MegaJoins-LOOKUP");
             t.setDaemon(true);
             return t;
         });
@@ -48,6 +55,10 @@ public final class MegaJoins extends Plugin implements Listener {
             dbExec.shutdown();
             try { dbExec.awaitTermination(2, TimeUnit.SECONDS); } catch (InterruptedException ignored) {}
         }
+        if (lookupExec != null) {
+            lookupExec.shutdown();
+            try { lookupExec.awaitTermination(2, TimeUnit.SECONDS); } catch (InterruptedException ignored) {}
+        }
     }
 
     @EventHandler
@@ -60,16 +71,14 @@ public final class MegaJoins extends Plugin implements Listener {
 
         UUID onlineUuid = event.getPlayer().getUniqueId();
         String name = event.getPlayer().getName();
-        String offlineUuidTrim = com.megacraft.megajoins.IdUtil.offlineUuidTrimmed(name);
+        String offlineUuidTrim = IdUtil.offlineUuidTrimmed(name);
 
         playerHost.put(onlineUuid, host);
         currentCounts.merge(host, 1, Integer::sum);
 
-        // capture effectively-final copies for lambda
         final String fHost = host;
         final String fUuid = offlineUuidTrim;
         final String fName = name;
-
         if (dbExec != null) {
             dbExec.execute(() -> {
                 try {
@@ -94,4 +103,6 @@ public final class MegaJoins extends Plugin implements Listener {
     }
 
     public SQLite getDb() { return db; }
+
+    public ExecutorService getLookupExec() { return lookupExec; }
 }

@@ -6,7 +6,7 @@ import net.md_5.bungee.api.chat.TextComponent;
 import net.md_5.bungee.api.plugin.Command;
 
 import java.util.*;
-import java.util.stream.Collectors;
+import java.util.concurrent.Future;
 
 public class MegaJoinsCommand extends Command {
 
@@ -41,8 +41,9 @@ public class MegaJoinsCommand extends Command {
                     return;
                 }
                 case "all": {
-                    Map<String,Integer> counts = plugin.getDb().queryCountsSince(0);
-                    sendDomainAndSubdomain(sender, "All-time Joins", counts, null);
+                    runAsyncLookup(sender, () -> plugin.getDb().queryCountsSince(0), (counts) -> {
+                        sendDomainAndSubdomain(sender, "All-time Joins", counts, null);
+                    });
                     return;
                 }
                 case "unique": {
@@ -56,8 +57,11 @@ public class MegaJoinsCommand extends Command {
                         sender.sendMessage(new TextComponent(ChatColor.RED + "Invalid range: " + rangeArg));
                         return;
                     }
-                    Map<String,Integer> unique = plugin.getDb().queryUniqueCountsSince(start);
-                    sendDomainAndSubdomain(sender, "UNIQUE Joins " + (start==0?"(all)":("since "+rangeArg)), unique, null);
+                    final long fStart = start;
+                    final String label = (start==0?"(all)":("since "+rangeArg));
+                    runAsyncLookup(sender, () -> plugin.getDb().queryUniqueCountsSince(fStart), (unique) -> {
+                        sendDomainAndSubdomain(sender, "UNIQUE Joins " + label, unique, null);
+                    });
                     return;
                 }
                 case "player": {
@@ -75,8 +79,10 @@ public class MegaJoinsCommand extends Command {
                         }
                     }
                     String uuidTrim = IdUtil.offlineUuidTrimmed(name);
-                    Map<String,Integer> data = plugin.getDb().queryByUuidSince(uuidTrim, start);
-                    sendDomainAndSubdomain(sender, "Joins for Player " + name + (start==0?" (all)":" ("+args[2]+")"), data, null);
+                    final long fStart = start;
+                    runAsyncLookup(sender, () -> plugin.getDb().queryByUuidSince(uuidTrim, fStart), (data) -> {
+                        sendDomainAndSubdomain(sender, "Joins for Player " + name + (fStart==0?" (all)":" ("+args[2]+")"), data, null);
+                    });
                     return;
                 }
                 case "uuid": {
@@ -93,8 +99,10 @@ public class MegaJoinsCommand extends Command {
                             return;
                         }
                     }
-                    Map<String,Integer> data = plugin.getDb().queryByUuidPrefixSince(norm, start);
-                    sendDomainAndSubdomain(sender, "Joins for UUID " + args[1] + (start==0?" (all)":" ("+args[2]+")"), data, null);
+                    final long fStart = start;
+                    runAsyncLookup(sender, () -> plugin.getDb().queryByUuidPrefixSince(norm, fStart), (data) -> {
+                        sendDomainAndSubdomain(sender, "Joins for UUID " + args[1] + (fStart==0?" (all)":" ("+args[2]+")"), data, null);
+                    });
                     return;
                 }
                 case "domain": {
@@ -105,28 +113,42 @@ public class MegaJoinsCommand extends Command {
                     String host = args[1].toLowerCase(Locale.ROOT);
                     String domain = IdUtil.toDomain(host);
 
-                    Map<String,Integer> allCounts = plugin.getDb().queryCountsSince(0);
-                    Map<String,Integer> allUnique = plugin.getDb().queryUniqueCountsSince(0);
-
-                    if (host.equals(domain)) {
-                        Map<String,Integer> subsAll = expandSubdomains(allCounts, domain);
-                        Map<String,Integer> subsUni = expandSubdomains(allUnique, domain);
-                        int totalAll = sum(subsAll);
-                        int totalUni = sum(subsUni);
-                        sender.sendMessage(new TextComponent(ChatColor.GOLD + "Domain: " + domain));
-                        sender.sendMessage(new TextComponent(ChatColor.AQUA + "All-time (domain total): " + ChatColor.GREEN + totalAll));
-                        sender.sendMessage(new TextComponent(ChatColor.AQUA + "UNIQUE (domain total): " + ChatColor.GREEN + totalUni));
-                        sender.sendMessage(new TextComponent(ChatColor.YELLOW + "Per subdomain (all-time):"));
-                        sendSortedMap(sender, subsAll);
-                        sender.sendMessage(new TextComponent(ChatColor.YELLOW + "Per subdomain (UNIQUE):"));
-                        sendSortedMap(sender, subsUni);
-                    } else {
-                        int total = allCounts.getOrDefault(host, 0);
-                        int uniq = allUnique.getOrDefault(host, 0);
-                        sender.sendMessage(new TextComponent(ChatColor.GOLD + "Subdomain: " + host));
-                        sender.sendMessage(new TextComponent(ChatColor.AQUA + "All-time: " + ChatColor.GREEN + total));
-                        sender.sendMessage(new TextComponent(ChatColor.AQUA + "UNIQUE: " + ChatColor.GREEN + uniq));
-                    }
+                    runAsyncLookup(sender, () -> {
+                        Map<String,Integer> allCounts = plugin.getDb().queryCountsSince(0);
+                        Map<String,Integer> allUnique = plugin.getDb().queryUniqueCountsSince(0);
+                        Map<String,Integer> out = new HashMap<>();
+                        // pack both maps into one pseudo structure is awkward; we'll render directly in the callback
+                        // Instead, return a marker map and use outer captured variables - not ideal.
+                        // We'll return allCounts and allUnique via a temporary holder:
+                        // Not possible in this lambda, so we do not use this return.
+                        return allCounts; // unused
+                    }, (unused) -> {
+                        try {
+                            Map<String,Integer> allCounts = plugin.getDb().queryCountsSince(0);
+                            Map<String,Integer> allUnique = plugin.getDb().queryUniqueCountsSince(0);
+                            if (host.equals(domain)) {
+                                Map<String,Integer> subsAll = expandSubdomains(allCounts, domain);
+                                Map<String,Integer> subsUni = expandSubdomains(allUnique, domain);
+                                int totalAll = sum(subsAll);
+                                int totalUni = sum(subsUni);
+                                sender.sendMessage(new TextComponent(ChatColor.GOLD + "Domain: " + domain));
+                                sender.sendMessage(new TextComponent(ChatColor.AQUA + "All-time (domain total): " + ChatColor.GREEN + totalAll));
+                                sender.sendMessage(new TextComponent(ChatColor.AQUA + "UNIQUE (domain total): " + ChatColor.GREEN + totalUni));
+                                sender.sendMessage(new TextComponent(ChatColor.YELLOW + "Per subdomain (all-time):"));
+                                sendSortedMap(sender, subsAll);
+                                sender.sendMessage(new TextComponent(ChatColor.YELLOW + "Per subdomain (UNIQUE):"));
+                                sendSortedMap(sender, subsUni);
+                            } else {
+                                int total = allCounts.getOrDefault(host, 0);
+                                int uniq = allUnique.getOrDefault(host, 0);
+                                sender.sendMessage(new TextComponent(ChatColor.GOLD + "Subdomain: " + host));
+                                sender.sendMessage(new TextComponent(ChatColor.AQUA + "All-time: " + ChatColor.GREEN + total));
+                                sender.sendMessage(new TextComponent(ChatColor.AQUA + "UNIQUE: " + ChatColor.GREEN + uniq));
+                            }
+                        } catch (Exception e) {
+                            sender.sendMessage(new TextComponent(ChatColor.RED + "Lookup failed: " + e.getMessage()));
+                        }
+                    });
                     return;
                 }
                 default: {
@@ -136,8 +158,10 @@ public class MegaJoinsCommand extends Command {
                         sendHelp(sender);
                         return;
                     }
-                    Map<String,Integer> counts = plugin.getDb().queryCountsSince(start);
-                    sendDomainAndSubdomain(sender, "Joins since " + sub, counts, null);
+                    final long fStart = start;
+                    runAsyncLookup(sender, () -> plugin.getDb().queryCountsSince(fStart), (counts) -> {
+                        sendDomainAndSubdomain(sender, "Joins since " + sub, counts, null);
+                    });
                     return;
                 }
             }
@@ -147,13 +171,28 @@ public class MegaJoinsCommand extends Command {
         }
     }
 
+    private interface SupplierE<T> { T get() throws Exception; }
+    private interface ConsumerE<T> { void accept(T t) throws Exception; }
+
+    private <T> void runAsyncLookup(CommandSender sender, SupplierE<T> query, ConsumerE<T> render) {
+        sender.sendMessage(new TextComponent(ChatColor.GRAY + "Working..."));
+        plugin.getLookupExec().execute(() -> {
+            try {
+                T result = query.get();
+                render.accept(result);
+            } catch (Exception e) {
+                sender.sendMessage(new TextComponent(ChatColor.RED + "Lookup failed: " + e.getMessage()));
+            }
+        });
+    }
+
     private void sendHelp(CommandSender sender) {
-        sender.sendMessage(new TextComponent(ChatColor.GOLD + "" + ChatColor.BOLD + "MegaJoins Help (V1b)"));
+        sender.sendMessage(new TextComponent(ChatColor.GOLD + "" + ChatColor.BOLD + "MegaJoins Help (1.0.3)"));
         sender.sendMessage(new TextComponent(ChatColor.YELLOW + "All commands require " + ChatColor.WHITE + "megajoins.admin"));
         sender.sendMessage(new TextComponent(ChatColor.AQUA + "/megajoins current" + ChatColor.GRAY + " — current online by domain and subdomain"));
         sender.sendMessage(new TextComponent(ChatColor.AQUA + "/megajoins all" + ChatColor.GRAY + " — all-time joins by domain and subdomain"));
         sender.sendMessage(new TextComponent(ChatColor.AQUA + "/megajoins <N>[h|d|w|m|y]" + ChatColor.GRAY + " — joins in range by domain and subdomain"));
-        sender.sendMessage(new TextComponent(ChatColor.AQUA + "/megajoins unique <N>[h|d|w|m|y]|all" + ChatColor.GRAY + " — UNIQUE joins by domain and subdomain"));
+        sender.sendMessage(new TextComponent(ChatColor.AQUA + "/megajoins unique <range|all>" + ChatColor.GRAY + " — UNIQUE joins by domain and subdomain"));
         sender.sendMessage(new TextComponent(ChatColor.AQUA + "/megajoins player <name> [range]" + ChatColor.GRAY + " — joins for a player by domain and subdomain"));
         sender.sendMessage(new TextComponent(ChatColor.AQUA + "/megajoins uuid <uuid|prefix> [range]" + ChatColor.GRAY + " — joins for a UUID by domain and subdomain"));
         sender.sendMessage(new TextComponent(ChatColor.AQUA + "/megajoins domain <domain|sub.domain>" + ChatColor.GRAY + " — domain/subdomain summary (all-time + UNIQUE)"));
