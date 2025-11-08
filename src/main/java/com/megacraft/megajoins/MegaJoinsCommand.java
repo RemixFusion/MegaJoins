@@ -6,7 +6,6 @@ import net.md_5.bungee.api.chat.TextComponent;
 import net.md_5.bungee.api.plugin.Command;
 
 import java.util.*;
-import java.util.concurrent.Future;
 
 public class MegaJoinsCommand extends Command {
 
