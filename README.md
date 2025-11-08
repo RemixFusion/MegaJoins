@@ -1,4 +1,5 @@
-# MegaJoins — Bungee/Waterfall Join Analytics (SQLite)
+# MegaJoins — Bungee/Waterfall Join Analytics
+
 
 Overview
 --------
