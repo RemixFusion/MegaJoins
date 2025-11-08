@@ -1,0 +1,5 @@
+name: MegaJoins
+main: com.megacraft.megajoins.MegaJoins
+version: V1b
+author: MegaCraft
+description: Tracks current, historical, and unique joins by hostname with SQLite; domain/subdomain views, player/uuid queries.
