@@ -6,6 +6,7 @@ import net.md_5.bungee.api.chat.TextComponent;
 import net.md_5.bungee.api.plugin.Command;
 
 import java.util.*;
+import java.util.concurrent.ExecutorService;
 
 public class MegaJoinsCommand extends Command {
 
@@ -20,6 +21,12 @@ public class MegaJoinsCommand extends Command {
     public void execute(CommandSender sender, String[] args) {
         if (!sender.hasPermission("megajoins.admin")) {
             sender.sendMessage(new TextComponent(ChatColor.RED + "You lack permission: megajoins.admin"));
+            return;
+        }
+
+        final JoinStorage storage = plugin.getDb();
+        if (storage == null) {
+            sender.sendMessage(new TextComponent(ChatColor.RED + "Storage backend failed to initialize."));
             return;
         }
 
@@ -40,7 +47,7 @@ public class MegaJoinsCommand extends Command {
                     return;
                 }
                 case "all": {
-                    runAsyncLookup(sender, () -> plugin.getDb().queryCountsSince(0), (counts) -> {
+                    runAsyncLookup(sender, () -> storage.queryCountsSince(0), (counts) -> {
                         sendDomainAndSubdomain(sender, "All-time Joins", counts, null);
                     });
                     return;
@@ -58,7 +65,7 @@ public class MegaJoinsCommand extends Command {
                     }
                     final long fStart = start;
                     final String label = (start==0?"(all)":("since "+rangeArg));
-                    runAsyncLookup(sender, () -> plugin.getDb().queryUniqueCountsSince(fStart), (unique) -> {
+                    runAsyncLookup(sender, () -> storage.queryUniqueCountsSince(fStart), (unique) -> {
                         sendDomainAndSubdomain(sender, "UNIQUE Joins " + label, unique, null);
                     });
                     return;
@@ -79,7 +86,7 @@ public class MegaJoinsCommand extends Command {
                     }
                     String uuidTrim = IdUtil.offlineUuidTrimmed(name);
                     final long fStart = start;
-                    runAsyncLookup(sender, () -> plugin.getDb().queryByUuidSince(uuidTrim, fStart), (data) -> {
+                    runAsyncLookup(sender, () -> storage.queryByUuidSince(uuidTrim, fStart), (data) -> {
                         sendDomainAndSubdomain(sender, "Joins for Player " + name + (fStart==0?" (all)":" ("+args[2]+")"), data, null);
                     });
                     return;
@@ -99,7 +106,7 @@ public class MegaJoinsCommand extends Command {
                         }
                     }
                     final long fStart = start;
-                    runAsyncLookup(sender, () -> plugin.getDb().queryByUuidPrefixSince(norm, fStart), (data) -> {
+                    runAsyncLookup(sender, () -> storage.queryByUuidPrefixSince(norm, fStart), (data) -> {
                         sendDomainAndSubdomain(sender, "Joins for UUID " + args[1] + (fStart==0?" (all)":" ("+args[2]+")"), data, null);
                     });
                     return;
@@ -113,8 +120,8 @@ public class MegaJoinsCommand extends Command {
                     String domain = IdUtil.toDomain(host);
 
                     runAsyncLookup(sender, () -> {
-                        Map<String,Integer> allCounts = plugin.getDb().queryCountsSince(0);
-                        Map<String,Integer> allUnique = plugin.getDb().queryUniqueCountsSince(0);
+                        Map<String,Integer> allCounts = storage.queryCountsSince(0);
+                        Map<String,Integer> allUnique = storage.queryUniqueCountsSince(0);
                         Map<String,Integer> out = new HashMap<>();
                         // pack both maps into one pseudo structure is awkward; we'll render directly in the callback
                         // Instead, return a marker map and use outer captured variables - not ideal.
@@ -123,8 +130,8 @@ public class MegaJoinsCommand extends Command {
                         return allCounts; // unused
                     }, (unused) -> {
                         try {
-                            Map<String,Integer> allCounts = plugin.getDb().queryCountsSince(0);
-                            Map<String,Integer> allUnique = plugin.getDb().queryUniqueCountsSince(0);
+                            Map<String,Integer> allCounts = storage.queryCountsSince(0);
+                            Map<String,Integer> allUnique = storage.queryUniqueCountsSince(0);
                             if (host.equals(domain)) {
                                 Map<String,Integer> subsAll = expandSubdomains(allCounts, domain);
                                 Map<String,Integer> subsUni = expandSubdomains(allUnique, domain);
@@ -158,7 +165,7 @@ public class MegaJoinsCommand extends Command {
                         return;
                     }
                     final long fStart = start;
-                    runAsyncLookup(sender, () -> plugin.getDb().queryCountsSince(fStart), (counts) -> {
+                    runAsyncLookup(sender, () -> storage.queryCountsSince(fStart), (counts) -> {
                         sendDomainAndSubdomain(sender, "Joins since " + sub, counts, null);
                     });
                     return;
@@ -175,14 +182,21 @@ public class MegaJoinsCommand extends Command {
 
     private <T> void runAsyncLookup(CommandSender sender, SupplierE<T> query, ConsumerE<T> render) {
         sender.sendMessage(new TextComponent(ChatColor.GRAY + "Working..."));
-        plugin.getLookupExec().execute(() -> {
+        ExecutorService exec = plugin.getLookupExec();
+        Runnable task = () -> {
             try {
                 T result = query.get();
                 render.accept(result);
             } catch (Exception e) {
                 sender.sendMessage(new TextComponent(ChatColor.RED + "Lookup failed: " + e.getMessage()));
             }
-        });
+        };
+
+        if (exec != null && !exec.isShutdown()) {
+            exec.execute(task);
+        } else {
+            plugin.getProxy().getScheduler().runAsync(plugin, task);
+        }
     }
 
     private void sendHelp(CommandSender sender) {
