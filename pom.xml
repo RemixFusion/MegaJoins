@@ -5,9 +5,9 @@
 
   <groupId>com.megacraft</groupId>
   <artifactId>megajoins</artifactId>
-  <version>1.0.2</version>
+  <version>1.0.3</version>
   <name>MegaJoins</name>
-  <description>Tracks current, historical, and unique joins by hostname with SQLite; domain/subdomain views, player/uuid queries.</description>
+  <description>Join analytics for Bungee/Waterfall with SQLite. Domain/subdomain grouping, unique counts, player/uuid queries. Async inserts and async lookups.</description>
 
   <properties>
     <maven.compiler.release>17</maven.compiler.release>
