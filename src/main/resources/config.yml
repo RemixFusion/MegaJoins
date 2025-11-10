@@ -1,0 +1,24 @@
+storage:
+  # Options: sqlite, mysql
+  type: sqlite
+
+  sqlite:
+    # SQLite database file (inside the plugin data folder)
+    file: data.db
+
+  mysql:
+    host: localhost
+    port: 3306
+    database: megajoins
+    username: root
+    password: ""
+    use-ssl: true
+    allow-public-key-retrieval: false
+
+    pool:
+      max-size: 5
+
+    # Optional additional DataSource properties. Use key/value pairs.
+    properties:
+      useUnicode: true
+      characterEncoding: utf8

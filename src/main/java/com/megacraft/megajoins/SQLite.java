@@ -5,7 +5,7 @@ import java.sql.*;
 import java.util.HashMap;
 import java.util.Map;
 
-public class SQLite {
+public class SQLite implements JoinStorage {
 
     private Connection conn;
     private final File file;
@@ -15,6 +15,7 @@ public class SQLite {
         this.file = new File(folder, name);
     }
 
+    @Override
     public void init() throws Exception {
         conn = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath());
         try (Statement st = conn.createStatement()) {
@@ -30,6 +31,17 @@ public class SQLite {
         }
     }
 
+    @Override
+    public void shutdown() {
+        if (conn != null) {
+            try {
+                conn.close();
+            } catch (SQLException ignored) {
+            }
+        }
+    }
+
+    @Override
     public void logJoinSync(String hostname, String uuidTrimLower, String playerName) throws Exception {
         try (PreparedStatement ps = conn.prepareStatement("INSERT INTO joins(hostname, uuid, player_name, ts) VALUES (?,?,?,?)")) {
             ps.setString(1, hostname);
@@ -40,6 +52,7 @@ public class SQLite {
         }
     }
 
+    @Override
     public Map<String,Integer> queryCountsSince(long start) throws Exception {
         final String sql = "SELECT hostname, COUNT(*) AS c FROM joins WHERE ts >= ? GROUP BY hostname";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -52,6 +65,7 @@ public class SQLite {
         }
     }
 
+    @Override
     public Map<String,Integer> queryUniqueCountsSince(long start) throws Exception {
         final String sql = "SELECT hostname, COUNT(DISTINCT uuid) AS c FROM joins WHERE ts >= ? GROUP BY hostname";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -64,6 +78,7 @@ public class SQLite {
         }
     }
 
+    @Override
     public Map<String,Integer> queryByUuidSince(String uuidTrimLower, long start) throws Exception {
         final String sql = "SELECT hostname, COUNT(*) AS c FROM joins WHERE uuid = ? AND ts >= ? GROUP BY hostname";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -77,6 +92,7 @@ public class SQLite {
         }
     }
 
+    @Override
     public Map<String,Integer> queryByUuidPrefixSince(String uuidTrimLowerPrefix, long start) throws Exception {
         final String sql = "SELECT hostname, COUNT(*) AS c FROM joins WHERE uuid LIKE ? AND ts >= ? GROUP BY hostname";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
