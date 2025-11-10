@@ -1,5 +1,5 @@
 name: MegaJoins
 main: com.megacraft.megajoins.MegaJoins
-version: V1b
+version: 1.0.3
 author: MegaCraft
-description: Tracks current, historical, and unique joins by hostname with SQLite; domain/subdomain views, player/uuid queries.
+description: Join analytics for Bungee/Waterfall with SQLite. Domain/subdomain grouping, unique counts, player/uuid queries. Async inserts and async lookups.
