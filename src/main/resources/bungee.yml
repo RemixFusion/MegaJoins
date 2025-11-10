@@ -2,4 +2,4 @@ name: MegaJoins
 main: com.megacraft.megajoins.MegaJoins
 version: 1.0.3
 author: MegaCraft
-description: Join analytics for Bungee/Waterfall with SQLite. Domain/subdomain grouping, unique counts, player/uuid queries. Async inserts and async lookups.
+description: Join analytics for Bungee/Waterfall with SQLite or MySQL. Domain/subdomain grouping, unique counts, player/uuid queries. Async inserts and async lookups.

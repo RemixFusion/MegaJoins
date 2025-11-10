@@ -4,7 +4,7 @@
 Overview
 --------
 MegaJoins tracks player joins on a BungeeCord/Waterfall proxy, grouped by hostname.
-It persists data in SQLite so you can query current counts, historical totals,
+It persists data in SQLite (default) or MySQL so you can query current counts, historical totals,
 unique players, per-domain rollups (last two labels, e.g., example.com),
 and per-subdomain details. You can also filter by time ranges and query by
 player name (offline UUID) or UUID/prefix.
@@ -20,9 +20,11 @@ Installation
 1) Place the plugin JAR into: plugins/
 2) Start the proxy once to generate the data folder:
    plugins/MegaJoins/
-3) The SQLite database is stored at:
-   plugins/MegaJoins/data.db
-4) Give your staff the permission node:
+3) Open `plugins/MegaJoins/config.yml` to choose the storage backend:
+   - `sqlite` (default) writes to `plugins/MegaJoins/data.db`.
+   - `mysql` connects using the host/port/database credentials you supply.
+4) Restart/reload the proxy after adjusting storage settings.
+5) Give your staff the permission node:
    megajoins.admin
 
 Permissions
@@ -73,8 +75,10 @@ Commands
 
 Data Storage
 ------------
-- SQLite DB file: plugins/MegaJoins/data.db
-- Table: joins(hostname TEXT, uuid TEXT, player_name TEXT, ts INTEGER seconds)
+- Config: plugins/MegaJoins/config.yml
+- SQLite: plugins/MegaJoins/data.db (default)
+- MySQL: configurable host/port/database with connection pool
+- Table schema: joins(hostname TEXT/VARCHAR, uuid TEXT/CHAR(32), player_name TEXT/VARCHAR, ts INTEGER seconds)
 
 Notes & Behavior
 ----------------
@@ -109,3 +113,4 @@ Troubleshooting
 - Ensure Java 17+ and Waterfall/Bungee target 1.20+.
 - Permission missing? Grant: megajoins.admin
 - Database path not found? The plugin creates it on first run at: plugins/MegaJoins/data.db
+- Switching to MySQL? Update config.yml, ensure credentials are correct, and allow the bundled MySQL driver network access.
