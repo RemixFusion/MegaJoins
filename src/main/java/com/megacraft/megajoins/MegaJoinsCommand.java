@@ -186,7 +186,7 @@ public class MegaJoinsCommand extends Command {
     }
 
     private void sendHelp(CommandSender sender) {
-        sender.sendMessage(new TextComponent(ChatColor.GOLD + "" + ChatColor.BOLD + "MegaJoins Help (1.0.3)"));
+        sender.sendMessage(new TextComponent(ChatColor.GOLD + "" + ChatColor.BOLD + "MegaJoins Help"));
         sender.sendMessage(new TextComponent(ChatColor.YELLOW + "All commands require " + ChatColor.WHITE + "megajoins.admin"));
         sender.sendMessage(new TextComponent(ChatColor.AQUA + "/megajoins current" + ChatColor.GRAY + " — current online by domain and subdomain"));
         sender.sendMessage(new TextComponent(ChatColor.AQUA + "/megajoins all" + ChatColor.GRAY + " — all-time joins by domain and subdomain"));
