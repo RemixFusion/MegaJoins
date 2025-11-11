@@ -3,6 +3,7 @@ package com.megacraft.megajoins;
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.CommandSender;
 import net.md_5.bungee.api.chat.TextComponent;
+import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.plugin.Command;
 
 import java.util.*;
@@ -84,9 +85,24 @@ public class MegaJoinsCommand extends Command {
                             return;
                         }
                     }
-                    String uuidTrim = IdUtil.offlineUuidTrimmed(name);
+                    ProxiedPlayer player = plugin.getProxy().getPlayer(name);
+                    String knownUuidTrim = null;
+                    if (player != null) {
+                        knownUuidTrim = IdUtil.normalizeUuidTrimmed(player.getUniqueId().toString());
+                    }
                     final long fStart = start;
-                    runAsyncLookup(sender, () -> storage.queryByUuidSince(uuidTrim, fStart), (data) -> {
+                    final String fKnownUuidTrim = knownUuidTrim;
+                    final String fName = name;
+                    runAsyncLookup(sender, () -> {
+                        String uuidTrim = fKnownUuidTrim;
+                        if (uuidTrim == null) {
+                            uuidTrim = storage.lookupUuidByPlayerName(fName);
+                        }
+                        if (uuidTrim == null) {
+                            throw new IllegalArgumentException("No stored UUID for player '" + fName + "'.");
+                        }
+                        return storage.queryByUuidSince(uuidTrim, fStart);
+                    }, (data) -> {
                         sendDomainAndSubdomain(sender, "Joins for Player " + name + (fStart==0?" (all)":" ("+args[2]+")"), data, null);
                     });
                     return;

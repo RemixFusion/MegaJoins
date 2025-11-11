@@ -63,7 +63,8 @@ public class MySQL implements JoinStorage {
                     "ts BIGINT NOT NULL," +
                     "INDEX idx_joins_ts (ts)," +
                     "INDEX idx_joins_host_ts (hostname, ts)," +
-                    "INDEX idx_joins_uuid_ts (uuid, ts)" +
+                    "INDEX idx_joins_uuid_ts (uuid, ts)," +
+                    "INDEX idx_joins_player_name_ts (player_name, ts)" +
                     ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
         }
     }
@@ -137,6 +138,20 @@ public class MySQL implements JoinStorage {
                 Map<String, Integer> out = new HashMap<>();
                 while (rs.next()) out.put(rs.getString(1), rs.getInt(2));
                 return out;
+            }
+        }
+    }
+
+    @Override
+    public String lookupUuidByPlayerName(String playerName) throws Exception {
+        final String sql = "SELECT uuid FROM joins WHERE player_name = ? ORDER BY ts DESC LIMIT 1";
+        try (Connection conn = dataSource.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, playerName);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString(1);
+                }
+                return null;
             }
         }
     }

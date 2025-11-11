@@ -85,13 +85,13 @@ public final class MegaJoins extends Plugin implements Listener {
 
         UUID onlineUuid = event.getPlayer().getUniqueId();
         String name = event.getPlayer().getName();
-        String offlineUuidTrim = IdUtil.offlineUuidTrimmed(name);
+        String onlineUuidTrim = IdUtil.normalizeUuidTrimmed(onlineUuid.toString());
 
         playerHost.put(onlineUuid, host);
         currentCounts.merge(host, 1, Integer::sum);
 
         final String fHost = host;
-        final String fUuid = offlineUuidTrim;
+        final String fUuid = onlineUuidTrim;
         final String fName = name;
         final JoinStorage storage = db;
         if (storage == null) {
