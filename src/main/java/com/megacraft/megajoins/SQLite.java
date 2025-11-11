@@ -28,6 +28,7 @@ public class SQLite implements JoinStorage {
             st.executeUpdate("CREATE INDEX IF NOT EXISTS idx_joins_ts ON joins(ts)");
             st.executeUpdate("CREATE INDEX IF NOT EXISTS idx_joins_host_ts ON joins(hostname, ts)");
             st.executeUpdate("CREATE INDEX IF NOT EXISTS idx_joins_uuid_ts ON joins(uuid, ts)");
+            st.executeUpdate("CREATE INDEX IF NOT EXISTS idx_joins_player_name_ts ON joins(player_name, ts)");
         }
     }
 
@@ -102,6 +103,20 @@ public class SQLite implements JoinStorage {
                 Map<String,Integer> out = new HashMap<>();
                 while (rs.next()) out.put(rs.getString(1), rs.getInt(2));
                 return out;
+            }
+        }
+    }
+
+    @Override
+    public String lookupUuidByPlayerName(String playerName) throws Exception {
+        final String sql = "SELECT uuid FROM joins WHERE player_name = ? ORDER BY ts DESC LIMIT 1";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, playerName);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString(1);
+                }
+                return null;
             }
         }
     }

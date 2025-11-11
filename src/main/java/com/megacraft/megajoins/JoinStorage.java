@@ -15,4 +15,6 @@ public interface JoinStorage {
     Map<String, Integer> queryByUuidSince(String uuidTrimLower, long start) throws Exception;
 
     Map<String, Integer> queryByUuidPrefixSince(String uuidTrimLowerPrefix, long start) throws Exception;
+
+    String lookupUuidByPlayerName(String playerName) throws Exception;
 }
